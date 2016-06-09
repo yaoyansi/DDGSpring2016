@@ -26,7 +26,7 @@ def main():
 
     # Create a viewer object
     winName = 'DDG Assignment2 -- ' + os.path.basename(filename)
-    meshDisplay = MeshDisplay(windowTitle=winName)
+    meshDisplay = MeshDisplay(windowTitle=winName, width=400, height=300)
     meshDisplay.setMesh(mesh)
 
     ###################### BEGIN YOUR CODE
@@ -41,8 +41,10 @@ def main():
         This method gets called on a face, so 'self' is a reference to the
         face at which we will compute the area.
         """
+        v = list(self.adjacentVerts())
+        a = 0.5 * norm(cross(v[1].position - v[0].position, v[2].position - v[0].position))
 
-        return 0.0 # placeholder value
+        return a # placeholder value
 
     @property
     @cacheGeometry
@@ -53,8 +55,10 @@ def main():
         This method gets called on a face, so 'self' is a reference to the
         face at which we will compute the normal.
         """
+        v = list(self.adjacentVerts())
+        n = normalize(cross(v[1].position - v[0].position, v[2].position - v[0].position))
 
-        return Vector3D(0.0,0.0,0.0) # placeholder value
+        return n # placeholder value
 
 
     @property
@@ -65,8 +69,12 @@ def main():
         This method gets called on a vertex, so 'self' is a reference to the
         vertex at which we will compute the normal.
         """
+        normalSum = np.array([0.0,0.0,0.0])
+        for face in self.adjacentFaces():
+            normalSum += face.normal * 1.0
+        n = normalize(normalSum)
 
-        return Vector3D(0.0,0.0,0.0) # placeholder value
+        return n # placeholder value
 
     @property
     @cacheGeometry
@@ -76,8 +84,12 @@ def main():
         This method gets called on a vertex, so 'self' is a reference to the
         vertex at which we will compute the normal.
         """
+        normalSum = np.array([0.0,0.0,0.0])
+        for face in self.adjacentFaces():
+            normalSum += face.normal * face.area
+        n = normalize(normalSum)
 
-        return Vector3D(0.0,0.0,0.0) # placeholder value
+        return n # placeholder value
 
     @property
     @cacheGeometry
@@ -101,8 +113,21 @@ def main():
         This method gets called on a halfedge, so 'self' is a reference to the
         halfedge at which we will compute the cotangent.
         """
+        if self.next.next.next is not self:
+            raise ValueError("ERROR: halfedge.cotan() is only well-defined on a triangle")
 
-        return 0.0 # placeholder value
+        if self.isReal:
+
+            # Relevant vectors
+            A = -self.next.vector
+            B = self.next.next.vector
+
+            # Nifty vector equivalent of cot(theta)
+            val = np.dot(A,B) / norm(cross(A,B))
+            return val
+
+        else:
+            return 0.0 # placeholder value
 
 
     @property
@@ -139,8 +164,29 @@ def main():
         This method gets called on a vertex, so 'self' is a reference to the
         vertex at which we will compute the angle defect.
         """
+        sum_tha = 0.0
+        # acos(np.dot((a/norm(a)),(b/norm(b))))
+        for face in self.adjacentFaces():
+            
+            v = list(face.adjacentVerts())
 
-        return 0.0 # placeholder value
+            v0 = v1 = v2 = Vertex()
+
+            if v[0].id == self.id:
+               v0 = v[0]; v1 = v[1]; v2 = v[2];
+            if v[1].id == self.id:
+               v0 = v[1]; v1 = v[2]; v2 = v[0];
+            if v[2].id == self.id:
+               v0 = v[2]; v1 = v[0]; v2 = v[1];
+
+            a = v1.position - v0.position
+            b = v2.position - v0.position
+
+            tha = acos(np.dot((a/norm(a)),(b/norm(b))))
+
+            sum_tha += tha
+	
+        return 2.0 * pi - sum_tha # placeholder value
 
 
     def totalGaussianCurvature():
