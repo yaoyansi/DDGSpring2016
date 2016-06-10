@@ -164,7 +164,7 @@ def main():
         This method gets called on a vertex, so 'self' is a reference to the
         vertex at which we will compute the angle defect.
         """
-        sum_tha = 0.0
+        sum_theta = 0.0
         # acos(np.dot((a/norm(a)),(b/norm(b))))
         for face in self.adjacentFaces():
             
@@ -182,11 +182,11 @@ def main():
             a = v1.position - v0.position
             b = v2.position - v0.position
 
-            tha = acos(np.dot((a/norm(a)),(b/norm(b))))
+            theta = acos(np.dot((a/norm(a)),(b/norm(b))))
 
-            sum_tha += tha
+            sum_theta += theta
 	
-        return 2.0 * pi - sum_tha # placeholder value
+        return 2.0 * pi - sum_theta # placeholder value
 
 
     def totalGaussianCurvature():
