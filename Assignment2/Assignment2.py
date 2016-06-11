@@ -154,11 +154,11 @@ def main():
         if self.isReal:
 
             # Relevant vectors
-            A = -self.next.vector
-            B = self.next.next.vector
+            v0 =  self.next.next.vector
+            v1 = -self.next.vector
 
             # Nifty vector equivalent of cot(theta)
-            val = np.dot(A,B) / norm(cross(A,B))
+            val = np.dot(v0, v1) / norm(cross(v0, v1))
             return val
 
         else:
@@ -175,8 +175,17 @@ def main():
         This method gets called on a vertex, so 'self' is a reference to the
         vertex at which we will compute the normal.
         """
+        # the vertex normals we get from the mean curvature vector are precisely 
+        # the same as the ones we get from the area gradient
+        # areaGrad(p_i) = 0.5 * SUM((cot a_j + cot b_j)(p_j - p_i))
+        sum_normal = [0.0, 0.0, 0.0]
 
-        return Vector3D(0.0,0.0,0.0) # placeholder value
+        halfedges = list(self.adjacentHalfEdges())
+        for he in halfedges:
+            sum_normal += (he.twin.cotan() + he.cotan()) * he.vector # (p_j - p_i) = he.vector
+
+        n = normalize(0.5 * sum_normal)
+        return n # But it seems that I should use -n to return the correct normal value
 
     @property
     @cacheGeometry
@@ -186,8 +195,20 @@ def main():
         This method gets called on a vertex, so 'self' is a reference to the
         vertex at which we will compute the normal.
         """
+        # Ns = 1/c * SUM(e(j) cross e(j+1) / (|e(j)|^2 * |e(j+1)|^2))
+        sum_normal = [0.0, 0.0, 0.0]
 
-        return Vector3D(0.0,0.0,0.0) # placeholder value
+        halfedges = list(self.adjacentHalfEdges())
+        LEN = len(halfedges)
+
+        for j in range(0, LEN-1): # [0, LEN-1)
+            normj  = norm(halfedges[j].vector)
+            normj1 = norm(halfedges[j+1].vector)
+
+            sum_normal += cross(halfedges[j].vector, halfedges[j+1].vector) / (normj*normj * normj1*normj1)
+
+        n = normalize(sum_normal)
+        return n # But it seems that I should use -n to return the correct normal value
 
 
 
@@ -221,7 +242,7 @@ def main():
 
             sum_theta += theta
 	
-        return 2.0 * pi - sum_theta # placeholder value
+        return 2.0 * pi - sum_theta
 
 
     def totalGaussianCurvature():
