@@ -44,7 +44,20 @@ def main():
         v = list(self.adjacentVerts())
         a = 0.5 * norm(cross(v[1].position - v[0].position, v[2].position - v[0].position))
 
-        return a # placeholder value
+        return a
+
+    def faceArea2(self):
+        """
+        use area vector to compute the polygon area
+        """
+        sum_areavector = [0.0, 0.0, 0.0]
+
+        verts = list(self.adjacentVerts())
+        LEN = len(verts)
+        for (i, v) in enumerate(verts):
+            sum_areavector += 0.5 * cross(verts[i].position, verts[(i+1)%LEN].position)
+
+        return norm(sum_areavector)
 
     @property
     @cacheGeometry
@@ -58,7 +71,7 @@ def main():
         v = list(self.adjacentVerts())
         n = normalize(cross(v[1].position - v[0].position, v[2].position - v[0].position))
 
-        return n # placeholder value
+        return n
 
 
     @property
@@ -74,7 +87,7 @@ def main():
             normalSum += face.normal * 1.0
         n = normalize(normalSum)
 
-        return n # placeholder value
+        return n
 
     @property
     @cacheGeometry
@@ -89,7 +102,7 @@ def main():
             normalSum += face.normal * face.area
         n = normalize(normalSum)
 
-        return n # placeholder value
+        return n
 
     @property
     @cacheGeometry
@@ -99,8 +112,30 @@ def main():
         This method gets called on a vertex, so 'self' is a reference to the
         vertex at which we will compute the normal.
         """
+        normalSum = np.array([0.0,0.0,0.0])
 
-        return Vector3D(0.0,0.0,0.0) # placeholder value
+        for face in self.adjacentFaces():
+
+            v = list(face.adjacentVerts())
+
+            v0 = v1 = v2 = Vertex()
+
+            if v[0].id == self.id:
+               v0 = v[0]; v1 = v[1]; v2 = v[2];
+            if v[1].id == self.id:
+               v0 = v[1]; v1 = v[2]; v2 = v[0];
+            if v[2].id == self.id:
+               v0 = v[2]; v1 = v[0]; v2 = v[1];
+
+            a = v1.position - v0.position
+            b = v2.position - v0.position
+
+            theta = acos(np.dot((a/norm(a)),(b/norm(b))))
+
+            normalSum += face.normal * theta
+
+        n = normalize(normalSum)
+        return n
 
 
     @property
@@ -355,7 +390,8 @@ def main():
     meshDisplay.pickVertexCallback = pickVert
 
     def pickFace(face):
-        print("   Face area: {:.5f}".format(face.area))
+        print("   Face area : {:.5f}".format(face.area))
+        print("   Face area2: {:.5f}".format(faceArea2(face)))
         print("   Normal: " + printVec3(face.normal))
         print("   Vertex positions: ")
         for (i, vert) in enumerate(face.adjacentVerts()):
