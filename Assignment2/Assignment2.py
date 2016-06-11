@@ -195,8 +195,10 @@ def main():
         curvature at each vertex.
         Note that you can access the mesh with the 'mesh' variable.
         """
-
-        return 0.0 # placeholder value
+        sum_ = 0.0
+        for v in mesh.verts:
+            sum_ += v.angleDefect
+        return sum_
 
 
     def gaussianCurvatureFromGaussBonnet():
@@ -207,8 +209,8 @@ def main():
         mesh includes members like 'mesh.verts' and 'mesh.faces', which are
         sets of the vertices (resp. faces) in the mesh.
         """
-
-        return 0.0 # placeholder value
+        X = len(mesh.verts) - len(mesh.edges) + len(mesh.faces)
+        return 2.0 * pi * X
 
 
     ###################### END YOUR CODE
