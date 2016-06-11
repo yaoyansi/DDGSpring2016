@@ -1,4 +1,4 @@
-#version 150
+#version 130
 
 uniform mat4 u_viewMatrix, u_projMatrix;
 uniform float u_depthOffset;
