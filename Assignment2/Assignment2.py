@@ -138,8 +138,8 @@ def main():
         return n
 
 
-    @property
-    @cacheGeometry
+    #@property
+    #@cacheGeometry
     def cotan(self):
         """
         Compute the cotangent of the angle opposite a halfedge. This is not
@@ -180,9 +180,9 @@ def main():
         # areaGrad(p_i) = 0.5 * SUM((cot a_j + cot b_j)(p_j - p_i))
         sum_normal = [0.0, 0.0, 0.0]
 
-        halfedges = list(self.adjacentHalfEdges())
+        halfedges = list(self.adjacentHalfEdges_CounterClockwise())
         for he in halfedges:
-            sum_normal += (he.twin.cotan() + he.cotan()) * he.vector # (p_j - p_i) = he.vector
+            sum_normal += (cotan(he.twin) + cotan(he)) * he.vector # (p_j - p_i) = he.vector
 
         n = normalize(0.5 * sum_normal)
         return n # But it seems that I should use -n to return the correct normal value
