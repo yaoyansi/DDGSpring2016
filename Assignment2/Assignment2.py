@@ -195,10 +195,10 @@ def main():
         This method gets called on a vertex, so 'self' is a reference to the
         vertex at which we will compute the normal.
         """
-        # Ns = 1/c * SUM(e(j) cross e(j+1) / (|e(j)|^2 * |e(j+1)|^2))
+        # Ns = 1/c * SUM(e(j) x e(j+1) / (|e(j)|^2 * |e(j+1)|^2))
         sum_normal = [0.0, 0.0, 0.0]
 
-        halfedges = list(self.adjacentHalfEdges())
+        halfedges = list(self.adjacentHalfEdges_CounterClockwise())
         LEN = len(halfedges)
 
         for j in range(0, LEN-1): # [0, LEN-1)

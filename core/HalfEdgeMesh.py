@@ -677,6 +677,20 @@ class Vertex(object):
             if(curr == first):
                 break
 
+    # Iterate over the halfedges adjacent to this vertex
+    def adjacentHalfEdges_CounterClockwise(self):
+
+        # Iterate through the adjacent edges
+        first = self.anyHalfEdge
+        curr = self.anyHalfEdge
+        while True:
+
+            yield curr
+
+            curr = curr.next.next.twin
+            if(curr == first):
+                break
+
     # Iterate over the verts adjacent to this vertex
     def adjacentVerts(self):
 
