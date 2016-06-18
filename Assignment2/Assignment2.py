@@ -185,7 +185,7 @@ def main():
             sum_normal += (cotan(he.twin) + cotan(he)) * he.vector # (p_j - p_i) = he.vector
 
         n = normalize(0.5 * sum_normal)
-        return n # But it seems that I should use -n to return the correct normal value
+        return -n # But it seems that I should use -n to return the correct normal value
 
     @property
     @cacheGeometry
