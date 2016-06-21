@@ -33,7 +33,7 @@ def main():
 
     # Create a viewer object
     winName = 'DDG Assignment3 ' + partString + '-- ' + os.path.basename(filename)
-    meshDisplay = MeshDisplay(windowTitle=winName)
+    meshDisplay = MeshDisplay(windowTitle=winName, width=400, height=300)
     meshDisplay.setMesh(mesh)
 
 
