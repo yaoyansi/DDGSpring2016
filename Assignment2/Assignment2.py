@@ -177,15 +177,15 @@ def main():
         """
         # the vertex normals we get from the mean curvature vector are precisely 
         # the same as the ones we get from the area gradient
-        # areaGrad(p_i) = 0.5 * SUM((cot a_j + cot b_j)(p_j - p_i))
+        # areaGrad(p_i) = 0.5 * SUM((cot a_j + cot b_j)(p_i - p_j))
         sum_normal = [0.0, 0.0, 0.0]
 
         halfedges = list(self.adjacentHalfEdges_CounterClockwise())
         for he in halfedges:
-            sum_normal += (cotan(he.twin) + cotan(he)) * he.vector # (p_j - p_i) = he.vector
+            sum_normal += (cotan(he.twin) + cotan(he)) * (-he.vector) # (p_i - p_j) = -he.vector
 
         n = normalize(0.5 * sum_normal)
-        return -n # But it seems that I should use -n to return the correct normal value
+        return n
 
     @property
     @cacheGeometry
