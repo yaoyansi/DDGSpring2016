@@ -60,8 +60,13 @@ def main():
         available as part of the library (normals, areas, etc). (Moving forward,
         Vertex.normal will mean area-weighted normals, unless otherwise specified)
         """
-
-        return 0.0 # placeholder value
+        val = 0.0
+        if self.anyHalfEdge.isReal:
+            val += self.anyHalfEdge.cotan
+        if self.anyHalfEdge.twin.isReal:
+            val += self.anyHalfEdge.twin.cotan
+        val *= 0.5
+        return val
 
 
     @property
@@ -74,8 +79,12 @@ def main():
         Recall that the dual area can be defined as 1/3 the area of the surrounding
         faces.
         """
-
-        return 0.0 # placeholder value
+        sum_area = 0.0
+        
+        for face in self.adjacentFaces():
+            sum_area += face.area
+        
+        return sum_area/3.0
 
 
     def enumerateVertices(mesh):
@@ -85,9 +94,16 @@ def main():
 
         You will want to use this function in your solutions below.
         """
-
-        return None # placeholder value
-
+        d = dict()
+        
+        index = 0
+        for vertex in mesh.verts:
+            d[vertex] = index
+            index += 1
+            
+        assert index == len(list(mesh.verts))
+        
+        return d
 
     #################################
     # Part 1: Dense Poisson Problem #
@@ -108,8 +124,28 @@ def main():
 
         Returns the resulting matrix.
         """
-
-        return None # placeholder value
+        verts = list(mesh.verts)
+        N = len(verts)
+        
+        # set C
+        C = np.zeros((N, N))
+        for vi in verts:
+            i          = index[vi]
+            sum_weight = 0.0
+            
+            for he in vi.adjacentHalfEdges():
+                vj          = he.vertex
+                j           = index[vj]
+                C[i, j]     = he.edge.cotanWeight
+                sum_weight += C[i, j]
+                
+            C[i, i] = -sum_weight
+        
+        # M(i,i) = Ai
+        M = buildMassMatrix_dense(mesh, index)
+        
+        L = np.linalg.inv(M) * C
+        return L
 
 
     def buildMassMatrix_dense(mesh, index):
@@ -118,9 +154,36 @@ def main():
 
         Returns the resulting matrix.
         """
+        verts = list(mesh.verts)
+        N = len(verts)
+        
+        M = np.zeros((N, N))
+        for vi in verts:
+            M[index[vi], index[vi]] = vi.dualArea
 
-        return None # placeholder value
+        return M
 
+    def buildAverageMass(mesh, index, rho):
+        verts = list(mesh.verts)
+        N = len(verts)
+        
+        # |M|
+        sum_area = 0.0
+        for vi in verts:
+            sum_area += vi.dualArea
+
+        # rho*dV  for each vertex
+        b = np.zeros((N, 1))
+        for vi in verts:
+            b[index[vi], 0] = rho[index[vi], 0] * vi.dualArea
+
+        # sum ( rho*dV )
+        sum_mass = 0.0
+        for vi in verts:
+            sum_mass += b[index[vi], 0]
+
+        # sum ( rho*dV ) / |M|
+        return sum_mass / sum_area
 
     def solvePoissonProblem_dense(mesh, densityValues):
         """
@@ -136,8 +199,30 @@ def main():
         you will get to click on vertices to specify density conditions. See the
         assignment document for more details.
         """
+        N = len(list(mesh.verts))
+        
+        index = enumerateVertices(mesh)
+                
+        # L phi = rho <==> M^(-1) C phi = rho <==> C phi = M rho 
+        L = buildLaplaceMatrix_dense(mesh, index)
+        
+        # set densityValues to rho
+        rho = np.zeros((N, 1))
+        for key in densityValues:
+            rho[index[key], 0] = densityValues[key]
+            
+        # It says that I should substract the average density from rho.(DDGNotes.pdf p70-71). But why?
+        rho_ = buildAverageMass(mesh, index, rho)
+        rho = rho - rho_
+        print rho
+        
+        phi = np.linalg.solve(L, rho)
 
-        pass # remove this line once you have implemented the method
+        # apply phi to each vertex. vertex_phi : {vertex => value}
+        vertex_phi = dict()
+        for v in list(mesh.verts):
+            vertex_phi[v] = phi[index[v], 0]
+        mesh.applyVertexValue(vertex_phi, 'solutionVal')
 
 
     ##################################
