@@ -163,7 +163,7 @@ def main():
 
         return M
 
-    def buildAverageMass(mesh, index, rho):
+    def buildAverageMass_dense(mesh, index, rho):
         verts = list(mesh.verts)
         N = len(verts)
         
@@ -212,7 +212,7 @@ def main():
             rho[index[key], 0] = densityValues[key]
             
         # It says that I should substract the average density from rho.(DDGNotes.pdf p70-71). But why?
-        rho_ = buildAverageMass(mesh, index, rho)
+        rho_ = buildAverageMass_dense(mesh, index, rho)
         rho = rho - rho_
         print rho
         
@@ -246,8 +246,30 @@ def main():
 
         Returns the resulting sparse matrix.
         """
-
-        return None # placeholder value
+        verts = list(mesh.verts)
+        N = len(verts)
+        
+        # set C
+        C = scipy.sparse.lil_matrix((N, N))
+        for vi in verts:
+            i          = index[vi]
+            sum_weight = 0.0
+            
+            for he in vi.adjacentHalfEdges():
+                vj          = he.vertex
+                j           = index[vj]
+                C[i, j]     = he.edge.cotanWeight
+                sum_weight += C[i, j]
+                
+            C[i, i] = -sum_weight
+        
+        # M(i,i) = Ai
+        M = buildMassMatrix_sparse(mesh, index)
+        # Convert the matrix to the CSR format, which allows faster arithmetic
+        M = M.tocsr()
+        
+        L = scipy.sparse.linalg.inv(M) * C
+        return L
 
     def buildMassMatrix_sparse(mesh, index):
         """
@@ -255,9 +277,38 @@ def main():
 
         Returns the resulting sparse matrix.
         """
+        verts = list(mesh.verts)
+        N = len(verts)
+        
+        M = scipy.sparse.lil_matrix((N, N))
+        for vi in verts:
+            M[index[vi], index[vi]] = vi.dualArea
 
-        return None # placeholder value
+        return M
+        
+        
+    def buildAverageMass_sparse(mesh, index, rho):
+        verts = list(mesh.verts)
+        N = len(verts)
+        
+        # |M|
+        sum_area = 0.0
+        for vi in verts:
+            sum_area += vi.dualArea
 
+        # rho*dV  for each vertex
+        b = scipy.sparse.lil_matrix((N, 1))
+        for vi in verts:
+            b[index[vi], 0] = rho[index[vi], 0] * vi.dualArea
+
+        # sum ( rho*dV )
+        sum_mass = 0.0
+        for vi in verts:
+            sum_mass += b[index[vi], 0]
+
+        # sum ( rho*dV ) / |M|
+        return sum_mass / sum_area
+        
 
     def solvePoissonProblem_sparse(mesh, densityValues):
         """
@@ -275,9 +326,33 @@ def main():
         you will get to click on vertices to specify density conditions. See the
         assignment document for more details.
         """
-
-
-        pass # remove this line once you have implemented the method
+        N = len(list(mesh.verts))
+        
+        index = enumerateVertices(mesh)
+                
+        # L phi = rho <==> M^(-1) C phi = rho <==> C phi = M rho 
+        L = buildLaplaceMatrix_sparse(mesh, index)
+        # Convert the matrix to the CSR format, which allows faster arithmetic
+        L = L.tocsr()
+        
+        # set densityValues to rho
+        rho = scipy.sparse.lil_matrix((N, 1))
+        for key in densityValues:
+            rho[index[key], 0] = densityValues[key]
+            
+        # It says that I should substract the average density from rho.
+        # (DDGNotes.pdf p70-71). But why?
+        rho_ = buildAverageMass_sparse(mesh, index, rho)
+        rho = rho - np.full((N, 1), rho_)
+        #print rho
+        
+        phi = scipy.sparse.linalg.spsolve(L, rho)
+        #print "phi.shape=", phi.shape #phi.todense()
+        # apply phi to each vertex. vertex_phi : {vertex => value}
+        vertex_phi = dict()
+        for v in list(mesh.verts):
+            vertex_phi[v] = phi[index[v]]
+        mesh.applyVertexValue(vertex_phi, 'solutionVal')
 
 
     ###############################
