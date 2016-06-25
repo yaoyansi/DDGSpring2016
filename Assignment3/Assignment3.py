@@ -366,7 +366,24 @@ def main():
     #
     # Of course, you will want to use sparse matrices here, so your code
     # scales well to larger meshes.
+    
+    def buildAveragePosition(mesh, index):
+        verts = list(mesh.verts)
+        N = len(verts)
+        
+        # |M|
+        sum_area = 0.0
+        for vi in verts:
+            sum_area += vi.dualArea
 
+        #
+        sum_position = Vector3D(0.0, 0.0, 0.0)
+        for vi in verts:
+            sum_position += vi.position * vi.dualArea
+
+        return sum_position / sum_area
+        
+        
     def buildMeanCurvatureFlowOperator(mesh, index, h):
         """
         Construct the (sparse) mean curvature operator matrix for the mesh.
@@ -375,8 +392,9 @@ def main():
 
         Returns the resulting matrix.
         """
+        L = buildLaplaceMatrix_sparse(mesh, index)
 
-        return None # placeholder value
+        return L
 
     def meanCurvatureFlow(mesh, h):
         """
@@ -397,8 +415,64 @@ def main():
         optimizations. You should probably have mesh.staticGeometry = True while
         you assemble your operator, or it will be very slow.
         """
+        N = len(list(mesh.verts))
+        
+        index = enumerateVertices(mesh)
 
-        pass # remove this line once you have implemented the method
+        average_position = buildAveragePosition(mesh, index);
+        print 'average_position=', average_position
+        
+        # f$_k$[ i ] = (fx[i], fy[i], fz[i])
+        fx = scipy.sparse.lil_matrix((N, 1))
+        fy = scipy.sparse.lil_matrix((N, 1))
+        fz = scipy.sparse.lil_matrix((N, 1))
+        # It will get a better result if we substract the average position
+        for v in mesh.verts:
+            fx[index[v], 0] = v.position[0] - average_position[0]
+            fy[index[v], 0] = v.position[1] - average_position[1]        
+            fz[index[v], 0] = v.position[2] - average_position[2]
+
+
+        L = buildMeanCurvatureFlowOperator(mesh, index, h)
+
+
+        '''
+        # forward Euler:
+        # f$_{k+1}$ = f$_k$ + h * L * f$_k$
+        fx1 = fx + h * L * fx
+        fy1 = fy + h * L * fy
+        fz1 = fz + h * L * fz
+        print 'fx1.shape=', fx1.shape
+        print 'fy1.shape=', fy1.shape        
+        print 'fz1.shape=', fz1.shape
+        '''
+        
+        # backward Euler:
+        #      (I - h * L)            * f$_{k+1}$ =     f$_k$
+        # <==> (I - h * M$^{-1}$ * C) * f$_{k+1}$ =     f$_k$
+        # <==> (M - h * C)            * f$_{k+1}$ = M * f$_k$
+        I = scipy.sparse.identity(N)
+        A = I - h * L
+        assert A.shape == (N, N)
+
+        # solve:
+        # (I - h * L) * f$_{k+1}$ = f$_k$
+        fx1 = scipy.sparse.linalg.spsolve(A, fx)
+        fy1 = scipy.sparse.linalg.spsolve(A, fy)
+        fz1 = scipy.sparse.linalg.spsolve(A, fz)
+        assert fx1.shape == (N,) # It is weired that fx1.shape is not (N, 1)
+        assert fy1.shape == (N,) # It is weired that fy1.shape is not (N, 1)
+        assert fz1.shape == (N,) # It is weired that fz1.shape is not (N, 1)
+        
+        # update the new position (f$_{k+1}$ + average_position) to mesh
+        mesh.staticGeometry = False
+        for v in mesh.verts:
+            # and we have to add the average position back
+            v.position[0] = fx1[index[v]] + average_position[0]
+            v.position[1] = fy1[index[v]] + average_position[1]
+            v.position[2] = fz1[index[v]] + average_position[2]
+
+        mesh.staticGeometry = True
 
 
 
