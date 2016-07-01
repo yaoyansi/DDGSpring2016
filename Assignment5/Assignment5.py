@@ -351,7 +351,7 @@ def main():
         d1 = buildExteriorDerivative1Form(mesh, faceIndex, edgeIndex)
         #print 'd0:', d0
         #print 'd1:', d1
-        print 'd1*d0:',d1*d0
+        #print 'd1*d0:',d1*d0
         
         S0 = S0.tocsr()
         S1 = S1.tocsr()
@@ -375,9 +375,8 @@ def main():
         for edge in mesh.edges:
             harmonic[edgeIndex[edge], 0] = omega[edgeIndex[edge], 0] - exact[edgeIndex[edge]] - coexact[edgeIndex[edge]]
         
-        #print 'harmonic.shape=', harmonic.shape
-        #print 'edge.harmonicComponent=', edge.harmonicComponent
         
+        # apply to buffer to display
         for edge in mesh.edges:
             edge.exactComponent    = exact[edgeIndex[edge]]
             edge.coexactComponent  = coexact[edgeIndex[edge]]
