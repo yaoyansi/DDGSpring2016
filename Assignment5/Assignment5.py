@@ -351,7 +351,7 @@ def main():
         d1 = buildExteriorDerivative1Form(mesh, faceIndex, edgeIndex)
         #print 'd0:', d0
         #print 'd1:', d1
-        #print 'd1*d0:',d1*d0
+        print 'd1*d0:',d1*d0
         
         S0 = S0.tocsr()
         S1 = S1.tocsr()
