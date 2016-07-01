@@ -37,7 +37,7 @@ def main():
 
     # Create a viewer object
     winName = 'DDG Assignment5 -- ' + os.path.basename(filename)
-    meshDisplay = MeshDisplay(windowTitle=winName)
+    meshDisplay = MeshDisplay(windowTitle=winName, width=400, height=300)
     meshDisplay.setMesh(mesh)
 
 
@@ -84,8 +84,11 @@ def main():
 
         This is a pretty simple method to implement, any choice of orientation is acceptable.
         """
-
-        pass # remove once you have implemented
+        for edge in mesh.edges:
+            edge.orientedHalfEdge = edge.anyHalfEdge
+            
+        for he in mesh.halfEdges:
+            he.orientationSign = 1.0 if (he == he.edge.orientedHalfEdge) else -1.0
 
     def diagonalInverse(A):
         """
@@ -98,9 +101,21 @@ def main():
         Note that the diagonal inverse is not well-defined if any of the diagonal elements are
         0.0. This needs to be acconuted for when you construct the matrices.
         """
+        """
+        unit test
+        C = scipy.sparse.lil_matrix((3, 3))
+        C[0, 0] = 1.0
+        C[1, 1] = 2.0
+        C[2, 2] = 3.0
+        D = diagonalInverse(C)        
+        """
+        B = A.copy()
+        assert B.shape[0] == B.shape[1]
+        
+        for i in range(0, B.shape[0]):
+            B[i, i] = 1.0/A[i, i]
+        return B
 
-        return None # placeholder
-    
 
     @property
     @cacheGeometry
@@ -112,8 +127,11 @@ def main():
 
         The image on page 78 of the course notes may help you visualize this.
         """
+        sum_area = 0.0
+        for face in self.adjacentFaces():
+            sum_area += face.area
         
-        return 0.0 # placeholder
+        return sum_area / 3.0
     Vertex.circumcentricDualArea = circumcentricDualArea
 
 
@@ -128,8 +146,14 @@ def main():
 
         By convention, the area of a vertex is 1.0.
         """
-       
-        return None # placeholder
+        verts = list(mesh.verts)
+        N = len(verts)
+        
+        HodgeStar = scipy.sparse.lil_matrix((N, N))
+        for v in verts:
+            HodgeStar[vertexIndex[v], vertexIndex[v]] = v.circumcentricDualArea / 1.0
+            
+        return HodgeStar
 
     
     def buildHodgeStar1Form(mesh, edgeIndex):
@@ -146,8 +170,17 @@ def main():
         this issue, you probably want to add a small value (like 10^-8) to these diagonal 
         elements to ensure all are nonzero without significantly changing the result.
         """
+        edges = list(mesh.edges)
+        N = len(edges)
         
-        return None # placeholder
+        HodgeStar = scipy.sparse.lil_matrix((N, N))
+        for e in edges:
+            if e.cotanWeight == 0:
+                HodgeStar[edgeIndex[e], edgeIndex[e]] = 1e-8
+            else:
+                HodgeStar[edgeIndex[e], edgeIndex[e]] = e.cotanWeight
+            
+        return HodgeStar
     
     
     def buildHodgeStar2Form(mesh, faceIndex):
@@ -160,8 +193,14 @@ def main():
 
         By convention, the area of a vertex is 1.0.
         """
+        faces = list(mesh.faces)
+        N = len(faces)
         
-        return None # placeholder
+        HodgeStar = scipy.sparse.lil_matrix((N, N))
+        for f in faces:
+                HodgeStar[faceIndex[f], faceIndex[f]] = 1.0 / f.area
+            
+        return HodgeStar
 
     
     def buildExteriorDerivative0Form(mesh, edgeIndex, vertexIndex):
@@ -171,9 +210,46 @@ def main():
 
         See section 3.6 of the course notes for an explanation of DEC.
         """
+        edges = list(mesh.edges)
+        verts = list(mesh.verts)
+        Ne = len(edges)        
+        Nv = len(verts)
+
+        d0 = scipy.sparse.lil_matrix((Ne, Nv))
         
-        return None # placeholder
-    
+        for e in edges:
+            he = e.orientedHalfEdge
+            '''
+             v0 ----e0-----> v1 
+             v2 <---e1------ v3 
+                           
+             d0 |  v0    v1   v2   v3  ...
+            ----+---------------------------
+             e0 |  -1     1    0    0  ...
+             e1 |   0     0    1   -1  ...
+             ...|
+            '''
+            if he.orientationSign == 1.0:
+                start = he.twin.vertex
+                end   = he.vertex
+                
+                d0[edgeIndex[e], vertexIndex[start]] = -1.0
+                d0[edgeIndex[e], vertexIndex[end]]   =  1.0
+                
+            elif he.orientationSign == -1.0:
+                start = he.vertex
+                end   = he.twin.vertex
+                
+                d0[edgeIndex[e], vertexIndex[start]] = -1.0
+                d0[edgeIndex[e], vertexIndex[end]]   =  1.0
+            else:
+                assert False, 'he.orientationSign is not 1 and -1'
+
+
+            
+        return d0
+
+
     def buildExteriorDerivative1Form(mesh, faceIndex, edgeIndex):
         """
         Build a sparse matrix encoding the exterior derivative on 1-forms.
@@ -181,8 +257,48 @@ def main():
          
         See section 3.6 of the course notes for an explanation of DEC.
         """
+        edges = list(mesh.edges)
+        faces = list(mesh.faces)
+        Ne = len(edges)        
+        Nf = len(faces)
+
+        d1 = scipy.sparse.lil_matrix((Nf, Ne))
         
-        return None # placeholder
+        for f in faces:
+            for he in f.adjacentHalfEdges():
+                '''
+                 v0__<----e0---- v1 ---e4--->__v2
+                  |\             ^             /|
+                    \            |            /
+                     \           |           / 
+                      \    f0    |    f1    /
+                       \         |         /
+                        e2       e1       e3
+                         \       |       /
+                          \      |      / 
+                           \     |     /   
+                            \    |    /      
+                             \   |   /        
+                              \  |  /
+                               \ | /
+                                \|/         
+                                 v3
+
+                 d1 |  e0    e1   e2   e3   e4  ...
+                ----+--------------------------------
+                 f0 |   1     1   -1    0    0  ...
+                 f1 |   0    -1    0    1   -1  ...
+                 ...|
+                '''
+                e = he.edge
+                
+                if he.orientationSign == 1.0:
+                    d1[faceIndex[f], edgeIndex[e]] = 1
+                elif he.orientationSign == -1.0:
+                    d1[faceIndex[f], edgeIndex[e]] = -1
+                else:
+                    assert False, 'he.orientationSign is not 1 and -1'
+        return d1
 
     def decomposeField(mesh):
         """
@@ -218,10 +334,38 @@ def main():
 
         This method will be called by the assignment code, you do not need to call it yourself.
         """
+        edgeIndex   = mesh.enumerateEdges()
+        vertexIndex = mesh.enumerateVertices()
+        faceIndex   = mesh.enumerateFaces()
+        
+        # omega
+        omega = scipy.sparse.lil_matrix((len(mesh.edges), 1))
+        for e in mesh.edges:
+            omega[edgeIndex[e], 0] = e.omega
 
-        pass # remove once you have implemented
-
-
+        S0 = buildHodgeStar0Form(mesh, vertexIndex)
+        S1 = buildHodgeStar1Form(mesh, edgeIndex)
+        S2 = buildHodgeStar2Form(mesh, faceIndex)
+        d0 = buildExteriorDerivative0Form(mesh, edgeIndex, vertexIndex)
+        d1 = buildExteriorDerivative1Form(mesh, faceIndex, edgeIndex)
+        print 'd0:', d0
+        print 'd1:', d1
+        print 'd1*d0:',d1*d0
+        
+        
+        # d0^T * S1      * d0   * alpha = d0^T * S1 * omega
+        # d1   * S1^(-1) * d1^T * beta_ = d1   * omega      ( beta = S2^(-1) * beta_ )
+        
+        
+        # exact    = d0 * alpha
+        # coexact  = S1^(-1) * d1^T * beta_
+        # harmonic = omega - exact - coexact
+        
+        for edge in mesh.edges:
+            edge.exactComponent    = edge.omega
+            edge.coexactComponent  = edge.omega         
+            edge.harmonicComponent = edge.omega
+            
     ###################### END YOUR CODE
 
 
