@@ -342,29 +342,46 @@ def main():
         omega = scipy.sparse.lil_matrix((len(mesh.edges), 1))
         for e in mesh.edges:
             omega[edgeIndex[e], 0] = e.omega
+        omega.tocsr()
 
         S0 = buildHodgeStar0Form(mesh, vertexIndex)
         S1 = buildHodgeStar1Form(mesh, edgeIndex)
         S2 = buildHodgeStar2Form(mesh, faceIndex)
         d0 = buildExteriorDerivative0Form(mesh, edgeIndex, vertexIndex)
         d1 = buildExteriorDerivative1Form(mesh, faceIndex, edgeIndex)
-        print 'd0:', d0
-        print 'd1:', d1
+        #print 'd0:', d0
+        #print 'd1:', d1
         print 'd1*d0:',d1*d0
         
+        S0 = S0.tocsr()
+        S1 = S1.tocsr()
+        S2 = S2.tocsr()
+        d0 = d0.tocsr()
+        d1 = d1.tocsr()
+        
+        S1_I = diagonalInverse(S1)
         
         # d0^T * S1      * d0   * alpha = d0^T * S1 * omega
+        alpha = scipy.sparse.linalg.spsolve(d0.transpose() * S1 * d0,      d0.transpose() * S1 * omega)
         # d1   * S1^(-1) * d1^T * beta_ = d1   * omega      ( beta = S2^(-1) * beta_ )
+        beta_ = scipy.sparse.linalg.spsolve(d1 * S1_I * d1.transpose(),    d1 * omega)
         
-        
-        # exact    = d0 * alpha
-        # coexact  = S1^(-1) * d1^T * beta_
+        # exact
+        exact    = d0 * alpha
+        # coexact
+        coexact  = S1_I * d1.transpose() * beta_
         # harmonic = omega - exact - coexact
+        harmonic = scipy.sparse.lil_matrix((len(mesh.edges), 1))
+        for edge in mesh.edges:
+            harmonic[edgeIndex[edge], 0] = omega[edgeIndex[edge], 0] - exact[edgeIndex[edge]] - coexact[edgeIndex[edge]]
+        
+        #print 'harmonic.shape=', harmonic.shape
+        #print 'edge.harmonicComponent=', edge.harmonicComponent
         
         for edge in mesh.edges:
-            edge.exactComponent    = edge.omega
-            edge.coexactComponent  = edge.omega         
-            edge.harmonicComponent = edge.omega
+            edge.exactComponent    = exact[edgeIndex[edge]]
+            edge.coexactComponent  = coexact[edgeIndex[edge]]
+            edge.harmonicComponent = harmonic[edgeIndex[edge], 0]
             
     ###################### END YOUR CODE
 
