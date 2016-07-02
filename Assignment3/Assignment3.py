@@ -629,8 +629,8 @@ def main():
         def decreaseStepsize():
             stepSize[0] -= 0.001
             print("Decreasing step size. New size h="+str(stepSize[0]))
-        meshDisplay.registerKeyCallback('z', decreaseStepsize, docstring="Increase the value of the step size (h) by 0.1")
-        meshDisplay.registerKeyCallback('x', increaseStepsize, docstring="Decrease the value of the step size (h) by 0.1")
+        meshDisplay.registerKeyCallback('z', decreaseStepsize, docstring="Decrease the value of the step size (h) by 0.001")
+        meshDisplay.registerKeyCallback('x', increaseStepsize, docstring="Increase the value of the step size (h) by 0.001")
 
 
 
